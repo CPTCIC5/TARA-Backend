@@ -1,0 +1,88 @@
+[
+  {
+    "role": "user",
+    "content": "Hi"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "Hi! How can I help you today?",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  },
+  {
+    "role": "user",
+    "content": "How are you doing tara"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "I\u2019m doing great, thanks for asking! How are you doing? What can I help you with today?",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  },
+  {
+    "role": "user",
+    "content": "Can u email aryan"
+  },
+  {
+    "arguments": "{}",
+    "call_id": "call_E8pHqZzvc2OAV8TowOqHEUuI",
+    "name": "people_data",
+    "type": "function_call"
+  },
+  {
+    "type": "function_call_output",
+    "call_id": "call_E8pHqZzvc2OAV8TowOqHEUuI",
+    "output": "{\n  \"data\": \"Name,Email, Phone\\nAryan,aryanjainak@gmail.com,,Added via assistant on 2025-11-14 IST\\n\"\n}"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "I can do that. I found Aryan in your contacts: aryanjainak@gmail.com \u2014 is that the right person?\n\nPlease share:\n- Subject\n- Message body (or I can draft one)\n- Any CC/BCC or attachments\n- Send now or schedule (e.g., Monday 9:00 AM IST)\n\nIf you want a quick start, I can send:\nSubject: Quick check-in\nBody: Hi Aryan, hope you\u2019re doing well. Just wanted to touch base\u2014do you have a few minutes to chat this week? Thanks!  \nShall I use this?",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  },
+  {
+    "role": "user",
+    "content": "Can u email nayan itself"
+  },
+  {
+    "arguments": "{}",
+    "call_id": "call_f7m17VMdnbQFNIasI0uF2xYs",
+    "name": "people_data",
+    "type": "function_call"
+  },
+  {
+    "type": "function_call_output",
+    "call_id": "call_f7m17VMdnbQFNIasI0uF2xYs",
+    "output": "{\n  \"data\": \"Name,Email, Phone\\nAryan,aryanjainak@gmail.com,,Added via assistant on 2025-11-14 IST\\n\"\n}"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "Got it\u2014do you want me to email Nayan now (instead of Aryan)?\n\nI couldn\u2019t find Nayan in your contacts. Please share:\n- Nayan\u2019s email address\n- Subject\n- Message body (or I can draft one)\n- Any CC/BCC or attachments\n- Send now or schedule a time\n\nIf you want a quick draft, I can send:\nSubject: Quick check-in\nBody: Hi Nayan, hope you\u2019re doing well. Just wanted to touch base\u2014do you have a few minutes to chat this week? Thanks!\n\nShare Nayan\u2019s email and I\u2019ll send it right away.",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  }
+]

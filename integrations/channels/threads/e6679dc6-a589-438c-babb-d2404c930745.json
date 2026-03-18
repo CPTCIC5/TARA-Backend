@@ -1,0 +1,45 @@
+[
+  {
+    "role": "user",
+    "content": "Hey!"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "Hey! How can I help today? I can draft emails, schedule meetings, set reminders, summarize docs, or look things up.",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  },
+  {
+    "role": "user",
+    "content": "can u email aryan and check how is he doing"
+  },
+  {
+    "arguments": "{}",
+    "call_id": "call_RwMiJuvKdeutXTfchwxr6LFq",
+    "name": "people_data",
+    "type": "function_call"
+  },
+  {
+    "type": "function_call_output",
+    "call_id": "call_RwMiJuvKdeutXTfchwxr6LFq",
+    "output": "{\n  \"data\": \"Name,Email, Phone\\nAryan,aryanjainak@gmail.com,,Added via assistant on 2025-11-14 IST\\n\"\n}"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "I found Aryan\u2019s email: aryanjainak@gmail.com. Here\u2019s a quick draft\u2014want me to send it as-is?\n\nSubject: Checking in\nBody:\nHey Aryan,\nJust wanted to check in and see how you\u2019re doing. How have things been lately? Would love to catch up when you have a minute.\nTake care,\n[Your Name]\n\nWould you like any tweaks to the tone or to add your signature/CC someone?",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  }
+]

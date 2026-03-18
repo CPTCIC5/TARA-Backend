@@ -1,0 +1,37 @@
+[
+  {
+    "role": "user",
+    "content": "Hey Tara"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "Hi! How can I help today? I can draft emails, schedule meetings, create docs/sheets, manage tasks, and more.",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  },
+  {
+    "role": "user",
+    "content": "can u wake me up after 15 mins"
+  },
+  {
+    "type": "web_search_call"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "I can\u2019t ring an alarm on your device, but I can set a reminder.\n\nWant me to:\n- create a Google Tasks reminder for 4:55 PM IST today (15 minutes from now), or\n- add a Calendar event at 4:55 PM IST?\n\nWhich do you prefer? If you say \u201cboth,\u201d I\u2019ll set both so you don\u2019t miss it.",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  }
+]

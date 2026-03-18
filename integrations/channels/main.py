@@ -20,6 +20,8 @@ Usage:
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
+import os
+import uuid
 from datetime import datetime, timedelta, timezone
 
 # Import integration functions
@@ -120,6 +122,7 @@ from google_tasks import (
     move_task,
     clear_completed_tasks,
 )
+from peoples import people_data, add_people
 
 load_dotenv()
 client = OpenAI()
@@ -127,6 +130,62 @@ client = OpenAI()
 # Service cache to avoid re-authenticating
 _service_cache = {}
 
+# Thread management
+THREADS_FILE = os.path.join(os.path.dirname(__file__), "threads.txt")
+THREADS_DIR = os.path.join(os.path.dirname(__file__), "threads")
+
+
+def get_thread_id():
+    """Get current thread ID from threads.txt. Returns None if file doesn't exist or is empty."""
+    if not os.path.exists(THREADS_FILE):
+        return None
+    try:
+        with open(THREADS_FILE, "r") as f:
+            thread_id = f.read().strip()
+            return thread_id if thread_id else None
+    except Exception:
+        return None
+
+
+def save_thread_id(thread_id):
+    """Save thread ID to threads.txt."""
+    try:
+        with open(THREADS_FILE, "w") as f:
+            f.write(str(thread_id))
+    except Exception as e:
+        print(f"Error saving thread ID: {e}")
+
+
+def get_thread_history_file(thread_id):
+    """Get the file path for storing conversation history of a thread."""
+    os.makedirs(THREADS_DIR, exist_ok=True)
+    return os.path.join(THREADS_DIR, f"{thread_id}.json")
+
+
+def load_conversation_history(thread_id):
+    """Load conversation history for a thread. Returns None if thread doesn't exist."""
+    if not thread_id:
+        return None
+    history_file = get_thread_history_file(thread_id)
+    if not os.path.exists(history_file):
+        return None
+    try:
+        with open(history_file, "r") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def save_conversation_history(thread_id, conversation_history):
+    """Save conversation history for a thread."""
+    if not thread_id:
+        return
+    history_file = get_thread_history_file(thread_id)
+    try:
+        with open(history_file, "w") as f:
+            json.dump(conversation_history, f, indent=2)
+    except Exception as e:
+        print(f"Error saving conversation history: {e}")
 
 def get_cached_service(service_type):
     """Get or create a cached service instance."""
@@ -574,7 +633,40 @@ tools = [
             },
         },
     },
-    {"type": "web_search"}
+    # People/Contacts tools
+    {
+        "type": "function",
+        "name": "people_data",
+        "description": "Get all people data from the contacts database. Use this when user mentions a name and you need their email or contact information. Parse the data yourself to find the matching person. This helps avoid repeatedly asking for email addresses of people the user works with.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "type": "function",
+        "name": "people_add",
+        "description": "Add a new person to the contacts database. Use this when user wants to save someone's contact information or when a person is not found and user confirms they want to add them. Always ask the user for confirmation before adding if the person was not found in search.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Full name of the person"},
+                "email": {"type": "string", "description": "Email address of the person"},
+                "phone_number": {"type": "string", "description": "Phone number (optional)"},
+                "metadata": {"type": "string", "description": "Additional notes or metadata about the person (optional)"},
+            },
+            "required": ["name", "email"],
+        },
+    },
+    {
+    "type": "web_search",
+    "user_location": {
+            "type": "approximate",
+            "country": "IN",
+            "city": "Bangaluru",
+            "region": "Karnataka",
+            "timezone": "Asia/Kolkata"
+    }}
 ]
 
 
@@ -863,6 +955,27 @@ def tasks_clear_completed(task_list_id="@default"):
     return json.dumps({"error": "Failed to clear completed tasks"})
 
 
+def people_data_wrapper():
+    """Get all people data using peoples.py - let LLM parse it."""
+    data = people_data()
+    return json.dumps({"data": data}, indent=2)
+
+
+def people_add(name, email, phone_number=None, metadata=None):
+    """Add a new person using peoples.py."""
+    try:
+        result = add_people(name, email, phone_number, metadata)
+        person_dict = {
+            "name": result.name,
+            "email": result.email,
+            "phone_number": result.phone_number,
+            "metadata": result.metadata
+        }
+        return json.dumps({"success": True, "person": person_dict, "message": f"Successfully added {name} to contacts."}, indent=2)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+
 # Map function names to their implementations
 function_map = {
     "gmail_list_messages": gmail_list_messages,
@@ -897,6 +1010,8 @@ function_map = {
     "tasks_delete_task": tasks_delete_task,
     "tasks_get_task": tasks_get_task,
     "tasks_clear_completed": tasks_clear_completed,
+    "people_data": people_data_wrapper,
+    "people_add": people_add,
 }
 
 
@@ -914,7 +1029,7 @@ def filter_input_item(item_dict, valid_input_fields):
 def process_llm_with_tools(
     user_message,
     model="gpt-5",
-    instructions="You are a helpful assistant that can interact with Gmail, Google Calendar, Google Docs, Google Drive, Google Meet, Google Sheets, and Google Tasks. Use the available tools to help users with their requests.",
+    instructions="You are a helpful assistant that can interact with Gmail, Google Calendar, Google Docs, Google Drive, Google Meet, Google Sheets, Google Tasks, and manage contacts. When users mention a person's name (e.g., 'send email to John', 'schedule meeting with Sarah'), first get the contacts data using people_data and parse it yourself to find the matching person. If found, use their email automatically. If not found, ask the user if they want to add this person to their contacts. Always try to use the contacts database to avoid repeatedly asking for email addresses of people the user works with. Use the available tools to help users with their requests.",
     conversation_history=None,
     stream=True,
     max_iterations=10
@@ -932,17 +1047,41 @@ def process_llm_with_tools(
     Returns:
         dict with 'response' (final response object) and 'output_text' (text output)
     """
-    # Initialize conversation history
+    # Thread management - get or create thread ID
+    thread_id = get_thread_id()
+    if not thread_id:
+        # Create new thread ID if threads.txt doesn't exist or is empty
+        thread_id = str(uuid.uuid4())
+        save_thread_id(thread_id)
+    
+    # Load conversation history from thread if available
     if conversation_history is None:
-        input_list = []
+        loaded_history = load_conversation_history(thread_id)
+        if loaded_history is not None:
+            input_list = loaded_history.copy()
+            # Remove 'id' fields only from reasoning items to avoid broken references
+            for item in input_list:
+                if isinstance(item, dict) and 'id' in item:
+                    item_type = item.get('type', '')
+                    if item_type == 'reasoning':
+                        del item['id']
+        else:
+            input_list = []
     else:
         input_list = conversation_history.copy()
+        # Remove 'id' fields only from reasoning items to avoid broken references
+        for item in input_list:
+            if isinstance(item, dict) and 'id' in item:
+                item_type = item.get('type', '')
+                if item_type == 'reasoning':
+                    del item['id']
     
     # Add user message
     input_list.append({"role": "user", "content": user_message})
     
     # Valid fields for input parameter
-    valid_input_fields = {'role', 'content', 'type', 'call_id', 'output', 'name', 'arguments'}
+    # Include 'id' as it's required by the API for proper item references
+    valid_input_fields = {'role', 'content', 'type', 'call_id', 'output', 'name', 'arguments', 'id'}
     
     # Iterate until we get a final response (or hit max iterations)
     iteration = 0
@@ -971,6 +1110,8 @@ def process_llm_with_tools(
             else:
                 # Fallback: convert to dict manually
                 item_dict = {}
+                if hasattr(item, 'id'):
+                    item_dict['id'] = item.id
                 if hasattr(item, 'type'):
                     item_dict['type'] = item.type
                 if hasattr(item, 'content'):
@@ -1024,10 +1165,14 @@ def process_llm_with_tools(
         if not has_function_calls:
             break
     
+    # Save conversation history for the thread
+    save_conversation_history(thread_id, input_list)
+    
     return {
         "response": response,
         "output_text": response.output_text if hasattr(response, 'output_text') else None,
-        "conversation_history": input_list
+        "conversation_history": input_list,
+        "thread_id": thread_id
     }
 
 
@@ -1051,4 +1196,3 @@ if __name__ == "__main__":
         print(result["output_text"])
     else:
         print(result["response"].model_dump_json(indent=2))
-

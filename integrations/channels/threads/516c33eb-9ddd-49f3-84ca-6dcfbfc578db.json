@@ -1,0 +1,29 @@
+[
+  {
+    "role": "user",
+    "content": "Can u remind me some of my last convo's with aryan"
+  },
+  {
+    "arguments": "{}",
+    "call_id": "call_H2bezjUIDjqWIJYP6buXStIR",
+    "name": "people_data",
+    "type": "function_call"
+  },
+  {
+    "type": "function_call_output",
+    "call_id": "call_H2bezjUIDjqWIJYP6buXStIR",
+    "output": "{\n  \"data\": \"Name,Email, Phone\\nAryan,aryanjainak@gmail.com,,Added via assistant on 2025-11-14 IST\\n\"\n}"
+  },
+  {
+    "content": [
+      {
+        "annotations": [],
+        "text": "Got it. Do you mean your recent email conversations with Aryan (aryanjainak@gmail.com)? If yes, I can pull the latest few threads from your Gmail and summarize them.\n\n- Option A: Show subjects, dates, and 1\u2013line snippets for the last 5\u201310 emails.\n- Option B: Summarize key points/actions from the last 30 days.\n- Option C: Look for calendar events or shared docs with Aryan.\n\nWhich option would you like? And is the Aryan above the right one? If these were WhatsApp/Slack chats instead, I don\u2019t have access\u2014feel free to paste them here and I\u2019ll summarize.",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  }
+]
