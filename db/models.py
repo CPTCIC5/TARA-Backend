@@ -25,12 +25,12 @@ def get_db():
 
 class Integrations(enum.IntEnum):
     GMAIL = 1
-    UBER = 2
-    WHATSAPP = 3
-    GOOGLE_MEET = 4
-    GOOGLE_CALENDAR = 5
-    GOOGLE_DOCS = 6
-    SLACK = 7
+    CALENDER = 2
+    DOCS = 3
+    DRIVE = 4
+    MEET = 5
+    SHEETS = 6
+    TASKS = 7
     
 
 

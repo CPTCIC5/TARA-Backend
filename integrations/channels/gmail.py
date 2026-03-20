@@ -1,8 +1,13 @@
 import os
+import sys
 import json
 import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from sqlalchemy.orm import Session
+
+# Add parent directory to path for imports when running directly
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -10,21 +15,36 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+from integrations.helpers import (
+    get_channel, create_channel, check_credentials, 
+    refresh_credentials, credentials_from_db, credentials_to_db, RefreshException
+)
+from db.models import Integrations
+from integrations.channels.my_server import mcp
 # Gmail API scope (full access)
 # Using gmail.modify which is more commonly enabled and provides read/write access
 # Alternative: ["https://www.googleapis.com/auth/gmail"] for full access
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 
-def get_service():
-    """Authenticate and return Gmail service."""
-    creds = None
-    token_path = os.path.join(os.path.dirname(__file__), "token_gmail.json")
+def get_service(user_id: int, db: Session):
+    """Authenticate and return Gmail service using database-backed credentials."""
     credentials_path = os.path.join(os.path.dirname(__file__), "credentials.json")
     
-    if os.path.exists(token_path):
+    # Get or create channel for this user
+    channel = get_channel(Integrations.GMAIL, user_id, db)
+    
+    if not channel:
+        # First time - create channel
+        channel = create_channel(Integrations.GMAIL, user_id, db)
+    
+    creds = None
+    
+    # Try to load credentials from database
+    if check_credentials(channel):
         try:
-            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+            creds = credentials_from_db(channel)
+            
             # Check if credentials have all required scopes
             if creds and creds.scopes:
                 required_scopes = set(SCOPES)
@@ -32,50 +52,55 @@ def get_service():
                 if not required_scopes.issubset(actual_scopes):
                     # Missing required scopes, need to re-authenticate
                     creds = None
-                    os.remove(token_path)
-        except Exception:
-            # If token is invalid, remove it and re-authenticate
+        except RefreshException:
             creds = None
-            if os.path.exists(token_path):
-                os.remove(token_path)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+    
+    # Handle expired or invalid credentials
+    if creds and not creds.valid:
+        if creds.expired and creds.refresh_token:
             try:
-                creds.refresh(Request())
-            except Exception as e:
+                creds = refresh_credentials(channel, db)
+            except RefreshException as e:
                 print(f"Error refreshing token: {e}")
-                # If refresh fails, re-authenticate
+                # Channel was deleted, need to recreate it
+                channel = create_channel(Integrations.GMAIL, user_id, db)
                 creds = None
-                if os.path.exists(token_path):
-                    os.remove(token_path)
-        
-        if not creds or not creds.valid:
-            try:
-                flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-                creds = flow.run_local_server(port=0)
-            except Exception as e:
-                error_msg = str(e)
-                if "invalid_scope" in error_msg.lower() or "invalid scope" in error_msg.lower():
-                    print("\n" + "="*60)
-                    print("ERROR: Gmail API scope is not enabled in your Google Cloud project.")
-                    print("="*60)
-                    print("\nTo fix this:")
-                    print("1. Go to https://console.cloud.google.com/")
-                    print("2. Select your project")
-                    print("3. Navigate to 'APIs & Services' > 'Library'")
-                    print("4. Search for 'Gmail API' and enable it")
-                    print("5. Go to 'APIs & Services' > 'OAuth consent screen'")
-                    print("6. Add the scope: https://www.googleapis.com/auth/gmail.modify")
-                    print("7. Save and try again")
-                    print("="*60 + "\n")
-                raise
-            with open(token_path, "w") as token:
-                token.write(creds.to_json())
+        else:
+            creds = None
+    
+    # Need new authentication
+    if not creds or not creds.valid:
+        try:
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+            creds = flow.run_local_server(port=0)
+            
+            # Ensure we have a valid channel (might have been deleted during refresh)
+            channel = get_channel(Integrations.GMAIL, user_id, db)
+            if not channel:
+                channel = create_channel(Integrations.GMAIL, user_id, db)
+            
+            # Store credentials in database
+            credentials_to_db(creds, channel, db)
+        except Exception as e:
+            error_msg = str(e)
+            if "invalid_scope" in error_msg.lower() or "invalid scope" in error_msg.lower():
+                print("\n" + "="*60)
+                print("ERROR: Gmail API scope is not enabled in your Google Cloud project.")
+                print("="*60)
+                print("\nTo fix this:")
+                print("1. Go to https://console.cloud.google.com/")
+                print("2. Select your project")
+                print("3. Navigate to 'APIs & Services' > 'Library'")
+                print("4. Search for 'Gmail API' and enable it")
+                print("5. Go to 'APIs & Services' > 'OAuth consent screen'")
+                print("6. Add the scope: https://www.googleapis.com/auth/gmail.modify")
+                print("7. Save and try again")
+                print("="*60 + "\n")
+            raise
 
     return build("gmail", "v1", credentials=creds)
 
-
+@mcp.tool
 def list_messages(service, user_id="me", max_results=10, query=""):
     """
     List messages from Gmail inbox.
@@ -334,10 +359,13 @@ def mark_as_unread(service, message_id, user_id="me"):
         return None
 
 
-def main():
+def main(user_id: int = 1, db: Session = None):
     """Example usage of Gmail functions."""
+    if db is None:
+        from db.models import SessionLocal
+        db = SessionLocal()
     try:
-        service = get_service()
+        service = get_service(user_id, db)
 
         # 1. List messages
         messages = list_messages(service, max_results=5)
@@ -355,6 +383,9 @@ def main():
 
     except HttpError as error:
         print("An error occurred:", error)
+    finally:
+        if db:
+            db.close()
 
 
 if __name__ == "__main__":

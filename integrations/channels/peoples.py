@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from toon import encode, decode
 
 class People(BaseModel):
     name: str 

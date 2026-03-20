@@ -1,5 +1,8 @@
 import os
 import json
+from sqlalchemy.orm import Session
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -7,76 +10,108 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+from integrations.helpers import (
+    get_channel, create_channel, check_credentials, 
+    refresh_credentials, credentials_from_db, credentials_to_db, RefreshException
+)
+from db.models import Integrations
+
 # Google Docs API scope
 SCOPES = ["https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/drive.file"]
 
 
-def get_service():
-    """Authenticate and return Google Docs service."""
-    creds = None
-    token_path = os.path.join(os.path.dirname(__file__), "token_docs.json")
+def get_service(user_id: int, db: Session):
+    """Authenticate and return Google Docs service using database-backed credentials."""
     credentials_path = os.path.join(os.path.dirname(__file__), "credentials.json")
     
-    if os.path.exists(token_path):
+    # Get or create channel for this user
+    channel = get_channel(Integrations.DOCS, user_id, db)
+    
+    if not channel:
+        # First time - create channel
+        channel = create_channel(Integrations.DOCS, user_id, db)
+    
+    creds = None
+    
+    # Try to load credentials from database
+    if check_credentials(channel):
         try:
-            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+            creds = credentials_from_db(channel)
+            
             # Check if credentials have all required scopes
             if creds and creds.scopes:
                 required_scopes = set(SCOPES)
                 actual_scopes = set(creds.scopes)
                 if not required_scopes.issubset(actual_scopes):
-                    # Missing required scopes, need to re-authenticate
                     creds = None
-                    os.remove(token_path)
-        except Exception:
-            # If token is invalid, remove it and re-authenticate
+        except RefreshException:
             creds = None
-            if os.path.exists(token_path):
-                os.remove(token_path)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+    
+    # Handle expired or invalid credentials
+    if creds and not creds.valid:
+        if creds.expired and creds.refresh_token:
+            try:
+                creds = refresh_credentials(channel, db)
+            except RefreshException:
+                creds = None
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(token_path, "w") as token:
-            token.write(creds.to_json())
+            creds = None
+    
+    # Need new authentication
+    if not creds or not creds.valid:
+        flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+        creds = flow.run_local_server(port=0)
+        
+        # Store credentials in database
+        credentials_to_db(creds, channel, db)
 
     return build("docs", "v1", credentials=creds)
 
 
-def get_drive_service():
-    """Authenticate and return Google Drive service."""
-    creds = None
-    token_path = os.path.join(os.path.dirname(__file__), "token_docs.json")
+def get_drive_service(user_id: int, db: Session):
+    """Authenticate and return Google Drive service using database-backed credentials."""
     credentials_path = os.path.join(os.path.dirname(__file__), "credentials.json")
     
-    if os.path.exists(token_path):
+    # Get or create channel for this user
+    channel = get_channel(Integrations.DOCS, user_id, db)
+    
+    if not channel:
+        # First time - create channel
+        channel = create_channel(Integrations.DOCS, user_id, db)
+    
+    creds = None
+    
+    # Try to load credentials from database
+    if check_credentials(channel):
         try:
-            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+            creds = credentials_from_db(channel)
+            
             # Check if credentials have all required scopes
             if creds and creds.scopes:
                 required_scopes = set(SCOPES)
                 actual_scopes = set(creds.scopes)
                 if not required_scopes.issubset(actual_scopes):
-                    # Missing required scopes, need to re-authenticate
                     creds = None
-                    os.remove(token_path)
-        except Exception:
-            # If token is invalid, remove it and re-authenticate
+        except RefreshException:
             creds = None
-            if os.path.exists(token_path):
-                os.remove(token_path)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+    
+    # Handle expired or invalid credentials
+    if creds and not creds.valid:
+        if creds.expired and creds.refresh_token:
+            try:
+                creds = refresh_credentials(channel, db)
+            except RefreshException:
+                creds = None
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(token_path, "w") as token:
-            token.write(creds.to_json())
+            creds = None
+    
+    # Need new authentication
+    if not creds or not creds.valid:
+        flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+        creds = flow.run_local_server(port=0)
+        
+        # Store credentials in database
+        credentials_to_db(creds, channel, db)
 
     return build("drive", "v3", credentials=creds)
 
@@ -377,11 +412,15 @@ def share_document(drive_service, document_id, email, role="reader"):
         return None
 
 
-def main():
+def main(user_id: int = 1, db: Session = None):
     """Example usage of Google Docs functions."""
+    if db is None:
+        from db.models import SessionLocal
+        db = SessionLocal()
+    
     try:
-        service = get_service()
-        drive_service = get_drive_service()
+        service = get_service(user_id, db)
+        drive_service = get_drive_service(user_id, db)
 
         # 1. Create a new document
         doc = create_document(service, "Test Document")
@@ -406,6 +445,9 @@ def main():
 
     except HttpError as error:
         print("An error occurred:", error)
+    finally:
+        if db:
+            db.close()
 
 
 if __name__ == "__main__":
