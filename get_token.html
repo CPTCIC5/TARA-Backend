@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get JWT Token for Postman</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
+        #googleSignInButton { margin: 20px 0; }
+        .token-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .token-box.show { display: block; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #5568d3; }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; }
+        .instructions {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        .instructions ol { margin: 10px 0; padding-left: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 JWT Token Generator</h1>
+        <p class="subtitle">For Postman/API Testing</p>
+        
+        <div class="instructions">
+            <strong>Instructions:</strong>
+            <ol>
+                <li>Replace GOOGLE_CLIENT_ID in the code below</li>
+                <li>Click "Sign in with Google"</li>
+                <li>Copy the JWT token</li>
+                <li>Use in Postman: <code>Authorization: Bearer &lt;token&gt;</code></li>
+            </ol>
+        </div>
+        
+        <div id="googleSignInButton"></div>
+        
+        <div id="status"></div>
+        
+        <div class="token-box" id="tokenBox">
+            <strong>Your JWT Token:</strong><br><br>
+            <span id="tokenValue"></span>
+            <br><br>
+            <button onclick="copyToken()">📋 Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ REPLACE WITH YOUR GOOGLE CLIENT ID
+        const GOOGLE_CLIENT_ID = '378980344755-lu350o14r1sr20lpuk47voh9ni0sa59a.apps.googleusercontent.com';
+
+        const API_BASE_URL = 'http://localhost:8000';
+        
+        let currentToken = '';
+        
+        window.onload = function() {
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleGoogleSignIn
+            });
+            
+            google.accounts.id.renderButton(
+                document.getElementById('googleSignInButton'),
+                { theme: 'outline', size: 'large', text: 'signin_with' }
+            );
+        };
+        
+        async function handleGoogleSignIn(response) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = '⏳ Authenticating...';
+            
+            console.log('Google credential received:', response.credential.substring(0, 50) + '...');
+            
+            try {
+                console.log('Sending to backend:', `${API_BASE_URL}/api/auth/google-signin`);
+                
+                const res = await fetch(`${API_BASE_URL}/api/auth/google-signin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: response.credential })
+                });
+                
+                console.log('Response status:', res.status);
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    console.error('Backend error:', error);
+                    throw new Error(error.detail || 'Authentication failed');
+                }
+                
+                const data = await res.json();
+                console.log('Success! Got JWT token');
+                currentToken = data.access_token;
+                
+                document.getElementById('tokenValue').textContent = currentToken;
+                document.getElementById('tokenBox').classList.add('show');
+                statusEl.innerHTML = '<span class="success">✅ Success! Token generated</span>';
+                
+            } catch (error) {
+                console.error('Full error:', error);
+                statusEl.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        function copyToken() {
+            navigator.clipboard.writeText(currentToken);
+            alert('Token copied to clipboard!');
+        }
+    </script>
+</body>
+</html>

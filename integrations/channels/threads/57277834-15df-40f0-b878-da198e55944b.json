@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "Hello"
+  },
+  {
+    "id": "msg_082a8e9cd179b00e0069bd16e2c36881939cea21cd8a4ab083",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Hello! How can I help you today? If you\u2019d like, I can draft emails, schedule meetings, set tasks, or organize your files.",
+        "type": "output_text",
+        "logprobs": []
+      }
+    ],
+    "role": "assistant",
+    "type": "message"
+  }
+]

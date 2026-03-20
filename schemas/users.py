@@ -11,12 +11,14 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     google_id: str
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
     id: int
+    email: EmailStr
     google_id: str
     is_active: bool
-    created_at: datetime
-    updated_at: datetime
+    joined_at: datetime
+    name: Optional[str] = None
+    profile_picture: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -73,12 +75,14 @@ class APICredentialsResponse(APICredentialsBase):
         from_attributes = True
 
 # Update UserResponse to include channels
-class UserResponseWithChannels(UserBase):
+class UserResponseWithChannels(BaseModel):
     id: int
+    email: EmailStr
     google_id: str
     is_active: bool
-    created_at: datetime
-    updated_at: datetime
+    joined_at: datetime
+    name: Optional[str] = None
+    profile_picture: Optional[str] = None
     channels: List[ChannelResponse] = []
     
     class Config:

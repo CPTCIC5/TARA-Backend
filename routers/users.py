@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
-from db.models import User, get_db
+from db.models import User, Profile, get_db
 from schemas.users import (
     GoogleTokenRequest, 
     TokenResponse, 
@@ -35,23 +35,37 @@ async def google_signin(
     ).first()
     
     if existing_user:
-        # User exists, update their information if needed
-        existing_user.name = google_user_info['name']
-        existing_user.profile_picture = google_user_info.get('profile_picture')
+        # User exists, update their profile information if needed
+        if existing_user.profile:
+            existing_user.profile.name = google_user_info['name']
+            existing_user.profile.profile_picture = google_user_info.get('profile_picture')
+        else:
+            # Create profile if it doesn't exist
+            profile = Profile(
+                user_id=existing_user.id,
+                name=google_user_info['name'],
+                profile_picture=google_user_info.get('profile_picture')
+            )
+            db.add(profile)
         db.commit()
         db.refresh(existing_user)
         user = existing_user
     else:
         # Create new user
-        user_data = UserCreate(
+        user = User(
             email=google_user_info['email'],
+            google_id=google_user_info['google_id']
+        )
+        db.add(user)
+        db.flush()  # Get user.id before creating profile
+        
+        # Create associated profile
+        profile = Profile(
+            user_id=user.id,
             name=google_user_info['name'],
-            google_id=google_user_info['google_id'],
             profile_picture=google_user_info.get('profile_picture')
         )
-        
-        user = User(**user_data.dict())
-        db.add(user)
+        db.add(profile)
         db.commit()
         db.refresh(user)
     
@@ -61,10 +75,21 @@ async def google_signin(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
     
+    # Build user response with profile data
+    user_response = UserResponse(
+        id=user.id,
+        email=user.email,
+        google_id=user.google_id,
+        is_active=user.is_active,
+        joined_at=user.joined_at,
+        name=user.profile.name if user.profile else None,
+        profile_picture=user.profile.profile_picture if user.profile else None
+    )
+    
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
-        user=UserResponse.from_orm(user)
+        user=user_response
     )
 
 @router.get("/profile", response_model=UserResponse)
