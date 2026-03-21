@@ -61,7 +61,7 @@ def get_service(user_id: int, db: Session):
     # Need new authentication
     if not creds or not creds.valid:
         flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-        creds = flow.run_local_server(port=0)
+        creds = flow.run_local_server(port=0, access_type='offline', prompt='consent')
         
         # Store credentials in database
         credentials_to_db(creds, channel, db)

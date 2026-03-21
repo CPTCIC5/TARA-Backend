@@ -1,0 +1,1 @@
+fastmcp dev inspector integrations/channels/my_server.py:mcp

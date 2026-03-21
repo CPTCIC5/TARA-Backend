@@ -20,7 +20,6 @@ from integrations.helpers import (
     refresh_credentials, credentials_from_db, credentials_to_db, RefreshException
 )
 from db.models import Integrations
-from integrations.channels.my_server import mcp
 # Gmail API scope (full access)
 # Using gmail.modify which is more commonly enabled and provides read/write access
 # Alternative: ["https://www.googleapis.com/auth/gmail"] for full access
@@ -72,7 +71,8 @@ def get_service(user_id: int, db: Session):
     if not creds or not creds.valid:
         try:
             flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-            creds = flow.run_local_server(port=0)
+            # Force offline access and consent to get refresh token
+            creds = flow.run_local_server(port=0, access_type='offline', prompt='consent')
             
             # Ensure we have a valid channel (might have been deleted during refresh)
             channel = get_channel(Integrations.GMAIL, user_id, db)
@@ -100,7 +100,6 @@ def get_service(user_id: int, db: Session):
 
     return build("gmail", "v1", credentials=creds)
 
-@mcp.tool
 def list_messages(service, user_id="me", max_results=10, query=""):
     """
     List messages from Gmail inbox.
