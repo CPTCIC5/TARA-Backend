@@ -13,41 +13,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 # Import all integration functions
 from integrations.channels import gmail, google_calender, google_docs, google_drive, google_meet, google_sheets, google_tasks
 
-# Get keys from environment or generate new ones
-private_key = os.getenv('MCP_PRIVATE_KEY')
-public_key = os.getenv('MCP_PUBLIC_KEY')
 
-if not private_key or not public_key:
-    print("\n⚠️  No keys found in .env file. Generating new keys...\n")
-    key_pair = RSAKeyPair.generate()
-    private_key_str = key_pair.private_key.get_secret_value() if hasattr(key_pair.private_key, 'get_secret_value') else str(key_pair.private_key)
-    public_key_str = key_pair.public_key.get_secret_value() if hasattr(key_pair.public_key, 'get_secret_value') else str(key_pair.public_key)
-    
-    print("=" * 80)
-    print("📋 Copy these to your .env file:")
-    print("=" * 80)
-    print(f'\nMCP_PRIVATE_KEY="{private_key_str}"')
-    print(f'\nMCP_PUBLIC_KEY="{public_key_str}"')
-    print("\n" + "=" * 80)
-    print("\n⚠️  Server will exit. Add the keys to .env and restart.\n")
-    exit(0)
-else:
-    from pydantic import SecretStr
-    key_pair = RSAKeyPair(
-        private_key=SecretStr(private_key),
-        public_key=SecretStr(public_key)
-    )
-
-# Generate access token
-access_token = key_pair.create_token(audience="invisible-lime-spider")
-
-# Setup authentication
-auth = JWTVerifier(
-    public_key=key_pair.public_key,
-    audience="invisible-lime-spider",
-)
-
-mcp = FastMCP("Google Workspace MCP Server 🚀", auth=auth)
+mcp = FastMCP("Google Workspace MCP Server 🚀")
 
 
 @mcp.tool
@@ -478,9 +445,5 @@ def tasks_update_task(task_list_id: str, task_id: str, title: str = None, notes:
         db.close()
 
 if __name__ == "__main__":
-    print("\n" + "=" * 80)
-    print("🔑 Access Token (copy to MCP_ACCESS_TOKEN in .env):")
-    print("=" * 80)
-    print(f"\n{access_token}\n")
-    print("=" * 80 + "\n")
+    #print(f"ARYAN-NOOB {access_token}")
     mcp.run(transport="http", port=8000)
