@@ -32,4 +32,4 @@ resp = client.responses.create(
 )
 
 print("✅ Success!")
-print(f"\n{resp.output_text}")
+print(f"\n{resp.output_text}") 
