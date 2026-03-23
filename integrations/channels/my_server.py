@@ -122,13 +122,13 @@ def calendar_list_events(db_user_id: int = 1, max_results: int = 10) -> dict:
         db.close()
 
 @mcp.tool
-def calendar_create_event(db_user_id: int = 1) -> dict:
-    """Create a sample calendar event"""
+def calendar_create_event(summary: str, start_time: str, end_time: str, description: str = "", db_user_id: int = 1) -> dict:
+    """Create a calendar event with custom title, start time, end time, and description. Times should be in ISO format (e.g., '2024-03-23T19:45:00')"""
     from db.models import SessionLocal
     db = SessionLocal()
     try:
         service = google_calender.get_service(db_user_id, db)
-        event = google_calender.create_event(service)
+        event = google_calender.create_event_dynamic(service, summary, start_time, end_time, description)
         return {"success": True, "event": event}
     except Exception as e:
         return {"error": str(e)}

@@ -114,6 +114,38 @@ def create_event(service, calendar_id="primary"):
     return event
 
 
+def create_event_dynamic(service, summary, start_time, end_time, description="", calendar_id="primary", timezone_str="UTC"):
+    """
+    Create a calendar event with custom parameters.
+    
+    Args:
+        service: Google Calendar service object
+        summary: Event title/summary
+        start_time: Start time (datetime object or ISO string)
+        end_time: End time (datetime object or ISO string)
+        description: Event description (optional)
+        calendar_id: Calendar ID (default: 'primary')
+        timezone_str: Timezone string (default: 'UTC')
+    
+    Returns:
+        Created event object
+    """
+    if isinstance(start_time, datetime):
+        start_time = start_time.isoformat()
+    if isinstance(end_time, datetime):
+        end_time = end_time.isoformat()
+    
+    event = {
+        "summary": summary,
+        "description": description,
+        "start": {"dateTime": start_time, "timeZone": timezone_str},
+        "end": {"dateTime": end_time, "timeZone": timezone_str},
+    }
+
+    event = service.events().insert(calendarId=calendar_id, body=event).execute()
+    return event
+
+
 def update_event(service, event_id, calendar_id="primary"):
     """Update the event summary and description."""
     event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()

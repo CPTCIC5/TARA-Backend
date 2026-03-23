@@ -43,6 +43,7 @@ class User(Base):
     joined_at = Column(DateTime, default=datetime.now())
     is_active = Column(Boolean, default=True)
     is_admin= Column(Boolean, default=False)
+    thread_id = Column(String, nullable=True)  # OpenAI thread ID for conversation
     
     # Relationship with Profile
     profile= relationship("Profile", uselist=False, back_populates="user", cascade="all, delete-orphan")
