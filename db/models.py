@@ -71,12 +71,12 @@ class APICredentials(Base):
     __tablename__ = "api_credentials"
     
     id = Column(Integer, primary_key=True)
-    key_1 = Column(String(255), nullable=True)
-    key_2 = Column(String(255), nullable=True)
-    key_3 = Column(String(255), nullable=True)
-    key_4 = Column(String(255), nullable=True)
-    key_5 = Column(String(255), nullable=True)
-    key_6 = Column(String(255), nullable=True)
+    key_1 = Column(String(500), nullable=True)
+    key_2 = Column(String(500), nullable=True)
+    key_3 = Column(String(500), nullable=True)
+    key_4 = Column(String(500), nullable=True)
+    key_5 = Column(String(500), nullable=True)
+    key_6 = Column(String(500), nullable=True)
     
     # Relationship with Channel
     channels = relationship("Channel", back_populates="credentials")

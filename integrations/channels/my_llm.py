@@ -52,7 +52,8 @@ Pass db_user_id={user_id} to all tools. Complete tasks fully.""",
             "server_label": "google_workspace_server",
             "server_url": f"{url}/mcp/",
             "require_approval": "never",
-        }],
+        },
+        {"type": "web_search"}],
         input=msg
     )
     return resp.output_text
