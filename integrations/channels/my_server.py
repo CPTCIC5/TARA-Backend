@@ -1,8 +1,6 @@
 from fastmcp import FastMCP
 import sys
 import os
-from fastmcp.server.auth import JWTVerifier
-from fastmcp.server.auth.providers.jwt import RSAKeyPair
 from dotenv import load_dotenv
 
 load_dotenv()
